@@ -23,4 +23,8 @@ public class HttpRequest {
     public String getValues(String varName) {
         return values.getOrDefault(varName, "");
     }
+
+    public String getValue(String key) {
+        return getValues(key);
+    }
 }

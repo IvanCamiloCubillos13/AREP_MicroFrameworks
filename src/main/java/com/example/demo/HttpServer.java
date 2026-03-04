@@ -4,9 +4,28 @@ import java.net.*;
 import java.util.HashMap;
 import java.util.Map;
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 public class HttpServer {
     static Map<String, WebMethod> endPoints = new HashMap();
+
+    static String staticFilesPath = null;
+
+    public static void staticfiles(String path) {
+        staticFilesPath = path;
+    }
+
+    private static String getContentType(String fileRequested) {
+        if (fileRequested.endsWith(".html") || fileRequested.endsWith(".htm")) return "text/html";
+        if (fileRequested.endsWith(".css")) return "text/css";
+        if (fileRequested.endsWith(".js")) return "text/javascript";
+        if (fileRequested.endsWith(".png")) return "image/png";
+        if (fileRequested.endsWith(".jpg") || fileRequested.endsWith(".jpeg")) return "image/jpeg";
+        return "text/plain";
+    }
+
     public static void main(String[] args) throws IOException, URISyntaxException {
 
         ServerSocket serverSocket = null;
@@ -54,7 +73,7 @@ public class HttpServer {
                     isFirstLine = false;
                 }
 
-                if (!in.ready()) {
+                if (inputLine.isEmpty()) {
                     break;
                 }
             }
@@ -78,28 +97,44 @@ public class HttpServer {
                     + currentWm.execute(req, res) 
                     + "</body>"
                     + "</html>";
+                out.print(outputLine);
+                out.flush();
 
             } else {
-                outputLine = "HTTP/1.1 200 OK\n\r"
-                    +    "Content-Type: text/html\n\r" 
-                    +    "\n\r"
-                    + "<!DOCTYPE html>"
-                    + "<html>"
-                    + "<head>"
-                    + "<meta charset=\"UTF-8\">"
-                    + "<title>Title of the document</title>\n"
-                    + "</head>"
-                    + "<body>"
-                    + "My Web Site"
-                    + "</body>"
-                    + "</html>";
+                if (staticFilesPath != null) {
+                    try {
+                        if (reqpath.equals("/")) {
+                            reqpath = "/index.html";
+                        }
+                        
+                        Path filePath = Paths.get("target/classes" + staticFilesPath + reqpath);
+                        
+                        if (Files.exists(filePath) && !Files.isDirectory(filePath)) {
+                            byte[] fileBytes = Files.readAllBytes(filePath);
+                            String contentType = getContentType(reqpath);
+                            
+                            out.print("HTTP/1.1 200 OK\r\n");
+                            out.print("Content-Type: " + contentType + "\r\n");
+                            out.print("Content-Length: " + fileBytes.length + "\r\n");
+                            out.print("\r\n");
+                            out.flush();
+                            
+                            clientSocket.getOutputStream().write(fileBytes);
+                            
+                        } else {
+                            out.println("HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\n\r\n<h1>404 File Not Found</h1>");
+                        }
+                    } catch (Exception e) {
+                        out.println("HTTP/1.1 500 Internal Server Error\r\n\r\n");
+                    }
+                } else {
+                    out.println("HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\n\r\n<h1>No static folder configured</h1>");
+                }
             }
-            out.println(outputLine);
             out.close();
             in.close();
             clientSocket.close();
         }
-        serverSocket.close();
     }
 
     public static void get(String path, WebMethod wm){
