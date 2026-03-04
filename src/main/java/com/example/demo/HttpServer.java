@@ -35,6 +35,7 @@ public class HttpServer {
 
             boolean isFirstLine = true;
             String reqpath = "";
+            String query = "";
 
             while ((inputLine = in.readLine()) != null) {
                 System.out.println("Received: " + inputLine);
@@ -47,7 +48,9 @@ public class HttpServer {
 
                     URI uripath = new URI(struripath);
                     reqpath = uripath.getPath();
-
+                
+                    query = uripath.getQuery(); 
+                    
                     isFirstLine = false;
                 }
 
@@ -59,9 +62,12 @@ public class HttpServer {
             WebMethod currentWm = endPoints.get(reqpath);
 
             if(currentWm != null){
-                outputLine = "HTTP/1.1 200 OK\n\r"
-                    +    "Content-Type: text/html\n\r" 
-                    +    "\n\r"
+                HttpRequest req = new HttpRequest(query);
+                HttpResponse res = new HttpResponse();
+
+                outputLine = "HTTP/1.1 200 OK\r\n"
+                    + "Content-Type: text/html\r\n" 
+                    + "\r\n"
                     + "<!DOCTYPE html>"
                     + "<html>"
                     + "<head>"
@@ -69,7 +75,7 @@ public class HttpServer {
                     + "<title>Title of the document</title>\n"
                     + "</head>"
                     + "<body>"
-                    + currentWm.execute()
+                    + currentWm.execute(req, res) 
                     + "</body>"
                     + "</html>";
 
